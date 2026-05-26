@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button.add-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button.add-btn:hover {
+            background-color: #218838;
+        }
+        .order-box {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fafafa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .order-text {
+            font-size: 16px;
+            color: #333;
+            word-break: break-word;
+        }
+        button.complete-btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        button.complete-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>New Orders</h2>
+    
+    <div class="input-group">
+        <input type="text" id="orderInput" placeholder="Enter order details here...">
+        <button class="add-btn" onclick="addOrder()">Add Order</button>
+    </div>
+
+    <div id="orderList">
+        </div>
+</div>
+
+<script>
+    function addOrder() {
+        const input = document.getElementById('orderInput');
+        const orderText = input.value.trim();
+
+        if (orderText === "") {
+            alert("Please enter an order item first!");
+            return;
+        }
+
+        const orderList = document.getElementById('orderList');
+
+        // Create the box for the order
+        const orderBox = document.createElement('div');
+        orderBox.className = 'order-box';
+
+        // Add the text for the order
+        const textSpan = document.createElement('span');
+        textSpan.className = 'order-text';
+        textSpan.textContent = orderText;
+
+        // Add the Complete button
+        const completeBtn = document.createElement('button');
+        completeBtn.className = 'complete-btn';
+        completeBtn.textContent = 'Complete';
+        
+        // Add click event to confirm and remove
+        completeBtn.onclick = function() {
+            const isConfirmed = confirm("Are you sure you want to complete this order?");
+            if (isConfirmed) {
+                orderList.removeChild(orderBox);
+            }
+        };
+
+        // Put the text and button inside the box, then put the box on the page
+        orderBox.appendChild(textSpan);
+        orderBox.appendChild(completeBtn);
+        orderList.appendChild(orderBox);
+
+        // Clear the input field for the next order
+        input.value = "";
+    }
+</script>
+
+</body>
+</html>
