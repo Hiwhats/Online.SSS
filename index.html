@@ -118,16 +118,15 @@
     </div>
 
     <div id="orderList">
-        </div>
+    </div>
 </div>
 
 <script>
-    // Paste your exact working Google Web App URL here:
-    const API_URL = "https://script.google.com/macros/s/AKfycbyFrm_TZc3pt2MUAsZnWA8HTsHo52F0Vmvo9RAVLD_mZ1uu7Ex6UcQDeXSnGhOYxUS-_w/exec";
+    // Live URL configuration
+    const API_URL = "https://script.google.com/macros/s/AKfycbx9kZoUzzSrTFreGV4H4y1pHhGF_esgjRUsa5NcrdqoWbxlD7_5cFDKa7STFjeOHOF9_Q/exec";
 
     let orders = [];
 
-    // --- Authentication Logic ---
     function checkPassword() {
         const pass = document.getElementById('passwordInput').value;
         if (pass === "Forget1234#") {
@@ -148,21 +147,31 @@
         document.getElementById('addBtn').disabled = isLoading;
     }
 
-    // --- Google Sheets Sync Logic (Updated with no-cors / mode handling) ---
-    
-    async function loadOrders() {
+    // Handles processing the lists received via script tag injection
+    function handleResponse(data) {
+        orders = data;
+        renderOrders();
+        showLoading(false);
+    }
+
+    // Loads live sheet data securely bypassing CORS limitations
+    function loadOrders() {
         showLoading(true);
-        try {
-            // Using a timestamp cache-breaker to ensure clean data fetches
-            const response = await fetch(`${API_URL}?action=get&_=${new Date().getTime()}`);
-            orders = await response.json();
-            renderOrders();
-        } catch (error) {
+        
+        // Clean up legacy dynamic network tags
+        const oldScript = document.getElementById('apiScript');
+        if (oldScript) oldScript.remove();
+
+        const script = document.createElement('script');
+        script.id = 'apiScript';
+        script.src = `${API_URL}?action=get&callback=handleResponse&_=${new Date().getTime()}`;
+        
+        script.onerror = function() {
             alert("Failed to load orders from spreadsheet.");
-            console.error(error);
-        } finally {
             showLoading(false);
-        }
+        };
+
+        document.body.appendChild(script);
     }
 
     async function addOrder() {
@@ -176,12 +185,9 @@
 
         showLoading(true);
         try {
-            // mode: 'no-cors' allows us to bypass browser security blocks perfectly
             await fetch(`${API_URL}?action=add&text=${encodeURIComponent(orderText)}`, { mode: 'no-cors' });
             input.value = "";
-            
-            // Give Google 1 second to update before refreshing the screen
-            setTimeout(loadOrders, 1000);
+            setTimeout(loadOrders, 1500); 
         } catch (error) {
             alert("Failed to save order.");
             showLoading(false);
@@ -195,9 +201,7 @@
             showLoading(true);
             try {
                 await fetch(`${API_URL}?action=delete&text=${encodeURIComponent(orderText)}`, { mode: 'no-cors' });
-                
-                // Give Google 1 second to update before refreshing the screen
-                setTimeout(loadOrders, 1000);
+                setTimeout(loadOrders, 1500);
             } catch (error) {
                 alert("Failed to complete order.");
                 showLoading(false);
