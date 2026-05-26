@@ -18,33 +18,37 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative;
         }
         h2 {
             margin-top: 0;
             color: #333;
+            text-align: center;
         }
         .input-group {
             display: flex;
             gap: 10px;
             margin-bottom: 25px;
         }
-        input[type="text"] {
+        input[type="text"], input[type="password"] {
             flex: 1;
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
-        button.add-btn {
+        button {
             padding: 10px 20px;
             font-size: 16px;
-            background-color: #28a745;
-            color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
         }
-        button.add-btn:hover {
+        button.primary-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        button.primary-btn:hover {
             background-color: #218838;
         }
         .order-box {
@@ -64,28 +68,53 @@
             word-break: break-word;
         }
         button.complete-btn {
-            padding: 8px 16px;
-            font-size: 14px;
             background-color: #007bff;
             color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
             margin-left: 10px;
+            padding: 8px 16px;
+            font-size: 14px;
         }
         button.complete-btn:hover {
             background-color: #0056b3;
+        }
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+            text-align: center;
+        }
+        #loadingOverlay {
+            display: none;
+            text-align: center;
+            color: #666;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        #appScreen {
+            display: none;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="loginScreen">
+    <h2>Access Required</h2>
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+        <input type="password" id="passwordInput" placeholder="Enter Password">
+        <button class="primary-btn" onclick="checkPassword()">Login</button>
+    </div>
+    <div class="error" id="errorMsg">Incorrect password. Please try again.</div>
+</div>
+
+<div class="container" id="appScreen">
     <h2>New Orders</h2>
     
+    <div id="loadingOverlay">Connecting to Spreadsheet...</div>
+
     <div class="input-group">
         <input type="text" id="orderInput" placeholder="Enter order details here...">
-        <button class="add-btn" onclick="addOrder()">Add Order</button>
+        <button class="primary-btn" id="addBtn" onclick="addOrder()">Add Order</button>
     </div>
 
     <div id="orderList">
@@ -93,7 +122,52 @@
 </div>
 
 <script>
-    function addOrder() {
+    // Paste your Google Web App URL between the quotes below:
+    const API_URL = "d/1smpZyvLPSa9qZaBYMS3ag1mN3ZkKCJX2DjzAt2L6Kug/edit?usp=drivesdk";
+
+    let orders = [];
+
+    // --- Authentication Logic ---
+    function checkPassword() {
+        const pass = document.getElementById('passwordInput').value;
+        if (pass === "Forget1234#") {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+            loadOrders(); 
+        } else {
+            document.getElementById('errorMsg').style.display = 'block';
+        }
+    }
+
+    document.getElementById('passwordInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') checkPassword();
+    });
+
+    // Loading status helper
+    function showLoading(isLoading) {
+        document.getElementById('loadingOverlay').style.display = isLoading ? 'block' : 'none';
+        document.getElementById('addBtn').disabled = isLoading;
+    }
+
+    // --- Google Sheets Sync Logic ---
+    
+    // Fetch live orders from Google Sheets
+    async function loadOrders() {
+        showLoading(true);
+        try {
+            const response = await fetch(`${API_URL}?action=get`);
+            orders = await response.json();
+            renderOrders();
+        } catch (error) {
+            alert("Failed to load orders from spreadsheet.");
+            console.error(error);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Add order to Google Sheets
+    async function addOrder() {
         const input = document.getElementById('orderInput');
         const orderText = input.value.trim();
 
@@ -102,38 +176,62 @@
             return;
         }
 
-        const orderList = document.getElementById('orderList');
-
-        // Create the box for the order
-        const orderBox = document.createElement('div');
-        orderBox.className = 'order-box';
-
-        // Add the text for the order
-        const textSpan = document.createElement('span');
-        textSpan.className = 'order-text';
-        textSpan.textContent = orderText;
-
-        // Add the Complete button
-        const completeBtn = document.createElement('button');
-        completeBtn.className = 'complete-btn';
-        completeBtn.textContent = 'Complete';
-        
-        // Add click event to confirm and remove
-        completeBtn.onclick = function() {
-            const isConfirmed = confirm("Are you sure you want to complete this order?");
-            if (isConfirmed) {
-                orderList.removeChild(orderBox);
-            }
-        };
-
-        // Put the text and button inside the box, then put the box on the page
-        orderBox.appendChild(textSpan);
-        orderBox.appendChild(completeBtn);
-        orderList.appendChild(orderBox);
-
-        // Clear the input field for the next order
-        input.value = "";
+        showLoading(true);
+        try {
+            await fetch(`${API_URL}?action=add&text=${encodeURIComponent(orderText)}`);
+            input.value = "";
+            await loadOrders(); // Refresh the list
+        } catch (error) {
+            alert("Failed to save order.");
+            showLoading(false);
+        }
     }
+
+    // Complete and remove order from Google Sheets
+    async function completeOrder(index) {
+        const isConfirmed = confirm("Are you sure you want to complete this order?");
+        if (isConfirmed) {
+            const orderText = orders[index];
+            showLoading(true);
+            try {
+                await fetch(`${API_URL}?action=delete&text=${encodeURIComponent(orderText)}`);
+                await loadOrders(); // Refresh the list
+            } catch (error) {
+                alert("Failed to complete order.");
+                showLoading(false);
+            }
+        }
+    }
+
+    // Render orders to the page
+    function renderOrders() {
+        const orderList = document.getElementById('orderList');
+        orderList.innerHTML = ""; 
+
+        orders.forEach((orderText, index) => {
+            const orderBox = document.createElement('div');
+            orderBox.className = 'order-box';
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'order-text';
+            textSpan.textContent = orderText;
+
+            const completeBtn = document.createElement('button');
+            completeBtn.className = 'complete-btn';
+            completeBtn.textContent = 'Complete';
+            completeBtn.onclick = function() {
+                completeOrder(index);
+            };
+
+            orderBox.appendChild(textSpan);
+            orderBox.appendChild(completeBtn);
+            orderList.appendChild(orderBox);
+        });
+    }
+
+    document.getElementById('orderInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') addOrder();
+    });
 </script>
 
 </body>
