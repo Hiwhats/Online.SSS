@@ -122,7 +122,7 @@
 </div>
 
 <script>
-    // Paste your Google Web App URL between the quotes below:
+    // Paste your exact working Google Web App URL here:
     const API_URL = "https://script.google.com/macros/s/AKfycbyFrm_TZc3pt2MUAsZnWA8HTsHo52F0Vmvo9RAVLD_mZ1uu7Ex6UcQDeXSnGhOYxUS-_w/exec";
 
     let orders = [];
@@ -143,19 +143,18 @@
         if (e.key === 'Enter') checkPassword();
     });
 
-    // Loading status helper
     function showLoading(isLoading) {
         document.getElementById('loadingOverlay').style.display = isLoading ? 'block' : 'none';
         document.getElementById('addBtn').disabled = isLoading;
     }
 
-    // --- Google Sheets Sync Logic ---
+    // --- Google Sheets Sync Logic (Updated with no-cors / mode handling) ---
     
-    // Fetch live orders from Google Sheets
     async function loadOrders() {
         showLoading(true);
         try {
-            const response = await fetch(`${API_URL}?action=get`);
+            // Using a timestamp cache-breaker to ensure clean data fetches
+            const response = await fetch(`${API_URL}?action=get&_=${new Date().getTime()}`);
             orders = await response.json();
             renderOrders();
         } catch (error) {
@@ -166,7 +165,6 @@
         }
     }
 
-    // Add order to Google Sheets
     async function addOrder() {
         const input = document.getElementById('orderInput');
         const orderText = input.value.trim();
@@ -178,24 +176,28 @@
 
         showLoading(true);
         try {
-            await fetch(`${API_URL}?action=add&text=${encodeURIComponent(orderText)}`);
+            // mode: 'no-cors' allows us to bypass browser security blocks perfectly
+            await fetch(`${API_URL}?action=add&text=${encodeURIComponent(orderText)}`, { mode: 'no-cors' });
             input.value = "";
-            await loadOrders(); // Refresh the list
+            
+            // Give Google 1 second to update before refreshing the screen
+            setTimeout(loadOrders, 1000);
         } catch (error) {
             alert("Failed to save order.");
             showLoading(false);
         }
     }
 
-    // Complete and remove order from Google Sheets
     async function completeOrder(index) {
         const isConfirmed = confirm("Are you sure you want to complete this order?");
         if (isConfirmed) {
             const orderText = orders[index];
             showLoading(true);
             try {
-                await fetch(`${API_URL}?action=delete&text=${encodeURIComponent(orderText)}`);
-                await loadOrders(); // Refresh the list
+                await fetch(`${API_URL}?action=delete&text=${encodeURIComponent(orderText)}`, { mode: 'no-cors' });
+                
+                // Give Google 1 second to update before refreshing the screen
+                setTimeout(loadOrders, 1000);
             } catch (error) {
                 alert("Failed to complete order.");
                 showLoading(false);
@@ -203,7 +205,6 @@
         }
     }
 
-    // Render orders to the page
     function renderOrders() {
         const orderList = document.getElementById('orderList');
         orderList.innerHTML = ""; 
